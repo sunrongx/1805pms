@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zs.pms.dao.TarticleDao">  	<!-- 指向dao接口，做dao实现 -->
+	
+	<!-- 
+		关联映射
+		type:最外面的对象
+		id：自己命名的
+	 -->
+	<resultMap type="com.zs.pms.po.TarticleBean" id="tartmap" >
+		<!-- 
+			一对一关联
+			property：属性名
+			column：关联的字段名
+			select：关联执行的sql名称
+			执行完sql返回的对象赋值给属性dep
+		 -->
+		<association property="channel" column="channel" select="getChannel" />
+		<collection property="id" column="id" select="getId" ofType="TchannelBean" />
+	</resultMap>
+	
+	<!-- 根据用户id获得channel，参数的{id}就是用户id -->
+	<!-- <select id="getChannel" parameterType="int" resultType="TchannelBean" >
+		select channel from tarticle where channel=(select id from tchannel where id=1) group by channel
+		
+	</select> -->
+	
+	<!-- 根据条件查询 -->
+	<select id="queryByCon" parameterType="com.zs.pms.vo.QueryTarticle" resultType="com.zs.pms.po.TarticleBean" >
+		
+		<!-- 调用SQL片段 -->
+		<include refid="selector" />
+		 
+	</select>
+	
+	<!-- 分页查询 -->
+	<select id="queryByPage" parameterType="com.zs.pms.vo.QueryTarticle" resultType="com.zs.pms.po.TarticleBean" >
+		
+		<!-- 调用SQL片段 -->
+		select * from (select rownum rn,t.* from(
+		<include refid="selector" />
+		<include refid="where" />
+
+		)t)t1
+		<include refid="page" />
+		 
+	</select>
+	
+	<sql id="selector" >
+		select * from tarticle
+	</sql>
+	
+	<!-- 排序 -->
+	<sql id="order" >
+		order by id desc
+	</sql>
+	
+	<!-- 
+		分页
+		大于号和小于号进行转义
+		> : &gt;
+		< : &lt;
+	 -->
+	 <sql id="page" >
+	 	<where>
+	 		<if test="start!=0" >
+	 			and rn&gt;=#{start}
+	 		</if>
+	 		<if test="end!=0" >
+	 			and rn&lt;=#{end}
+	 		</if>
+	 	</where>
+	 </sql>
+	
+	
+	<!-- 关联返回 	根据主键查询-->
+	<select id="queryById" parameterType="int" resultMap="tartmap" >
+		<include refid="selector" />
+		 where id=#{id}
+	</select>
+	
+	<!-- 批量删除 -->
+	<delete id="deleteByIds" >
+		delete from tarticle where id in
+		<!-- 
+			循环拼串，类似（10,11，12,13）
+			collection：数组类型 item：临时变量名 separator：分隔符
+			open：以xxx开始  close：以xxx结束
+		 -->
+		 <foreach collection="array" item="id" separator="," open="(" close=")" >
+		 	#{id}
+		 </foreach>
+	</delete>
+	
+	
+	
+	<!-- 关联执行的sql 	获取栏目表 -->
+	<select id="getChannel" parameterType="int" resultType="com.zs.pms.po.TchannelBean" >
+		select * from tchannel where id=#{channel}
+	</select>
+	
+	<!-- 修改 -->
+	<update id="update" parameterType="com.zs.pms.po.TarticleBean" >
+		update tarticle
+		<set>
+			<!-- 去掉最后一个, -->
+			<trim suffixOverrides=",">
+			
+				<if test="title!=null and title!='' ">
+					title=#{title},
+				</if>
+				<if test="acontent!=null and acontent!='' ">
+					acontent=#{acontent},
+				</if>
+				<if test="author!=null and author!='' ">
+					author=#{author},
+				</if>
+				<if test="channel!=0">
+					channel=#{tchannel.channel},
+				</if>
+				<if test="isremod!=0">
+					isremod=#{isremod},
+				</if>
+				<if test="ishot!=0">
+					ishot=#{ishot},
+				</if>
+				<if test="creator!=0">
+					creator=#{creator},
+				</if>
+				<if test="creatime!=null">
+					creatime=sysdate,
+				</if>
+				<if test="updator!=0">
+					updator=#{updator}, 	
+				</if>
+				<if test="updatime!=null">
+					updatime=sysdate,
+				</if>
+				
+				
+			</trim>
+		</set>
+		where id=#{id}
+	</update>
+	
+	
+	<!-- 删除一条 -->
+	<delete id="delete" >
+		delete from tarticle where id=#{id}
+	</delete>
+	
+	<!-- 新增 -->
+	<insert id="insert" parameterType="com.zs.pms.po.TarticleBean"  >
+		<selectKey keyProperty="id" order="BEFORE" resultType="int">
+			select SEQ_D2.nextval from dual
+		</selectKey>
+		insert into tarticle
+  		(id, title, acontent, author, channel, isremod, ishot, creator, creatime, updator, updatime) values
+  		(#{id}, #{title}, #{acontent}, #{author}, #{tchannel.id}, #{isremod}, #{ishot}, #{creator}, sysdate, #{updator}, sysdate);
+	</insert>
+	
+	<!-- 查询总数 -->
+	<select id="queryCount" parameterType="com.zs.pms.vo.QueryTarticle" resultType="int">
+		select count(*) from tarticle
+	</select>
+		
+	
+</mapper>

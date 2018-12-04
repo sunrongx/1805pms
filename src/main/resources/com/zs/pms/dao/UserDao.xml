@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.zs.pms.dao.UserDao">  <!-- 指向dao接口，做dao实现 -->
+	
+	<!-- 
+		关联映射
+		type:最外面的对象
+		id：自己命名的
+	 -->
+	<resultMap type="com.zs.pms.po.TUser" id="usermap" >
+		<!-- 
+			一对一关联
+			property：属性名
+			column：关联的字段名
+			select：关联执行的sql名称
+			执行完sql返回的对象赋值给属性dep
+		 -->
+		<association property="dept" column="dept" select="getDept" />
+		<collection property="permissions" column="id" select="getPermissions" ofType="com.zs.pms.po.TPermission" />
+	</resultMap>
+	
+	<!-- 根据用户id获得权限列表，参数的{id}就是用户id -->
+	<select id="getPermissions" parameterType="int" resultType="com.zs.pms.po.TPermission" >
+		select * from tpermission where id in(select pid from trolepermission where rid in 
+		(select rid from tuserrole where usid=#{id}))
+	</select>
+	
+	<!-- 根据条件查询 -->
+	<select id="queryByCon" parameterType="com.zs.pms.vo.QueryUser" resultType="com.zs.pms.po.TUser" >
+		
+		<!-- 调用SQL片段 -->
+		<include refid="selector" />
+		<include refid="where" />
+		 
+	</select>
+	
+	<!-- 分页查询 -->
+	<select id="queryByPage" parameterType="com.zs.pms.vo.QueryUser" resultMap="usermap2" >
+		
+		<!-- 调用SQL片段 -->
+		select * from (select rownum rn,t.* from(
+		<include refid="selector" />
+		<include refid="where" />
+		<include refid="order" />
+		)t)t1
+		<include refid="page" />
+		 
+	</select>
+	
+	<sql id="selector" >
+		select * from tuser
+	</sql>
+	
+	<!-- 查询条件 -->
+	<sql id="where">
+		<where> 	 <!-- 自动判断 -->
+			<if test="loginname!=null and loginname!='' ">		<!-- 判字符串 -->
+				and loginname=#{loginname}
+			</if>
+			<if test="password!=null and password!='' ">
+				and password=#{password}
+			</if>
+			<if test="isenabled!=0" >		<!-- 判数字 -->
+				and isenabled=#{isenabled}
+			</if>
+		</where>
+	</sql>
+	
+	<!-- 排序 -->
+	<sql id="order" >
+		order by id desc
+	</sql>
+	
+	<!-- 
+		分页
+		大于号和小于号进行转义
+		> : &gt;
+		< : &lt;
+	 -->
+	 <sql id="page" >
+	 	<where>
+	 		<if test="start!=0" >
+	 			and rn&gt;=#{start}
+	 		</if>
+	 		<if test="end!=0" >
+	 			and rn&lt;=#{end}
+	 		</if>
+	 	</where>
+	 </sql>
+	
+	
+	<!-- 关联返回 	根据主键查询-->
+	<select id="queryById" parameterType="int" resultMap="usermap" >
+		<include refid="selector" />
+		 where id=#{id}
+	</select>
+	
+	<!-- 批量删除 -->
+	<delete id="deleteByIds" >
+		delete from tuser where id in
+		<!-- 
+			循环拼串，类似（10,11，12,13）
+			collection：数组类型 item：临时变量名 separator：分隔符
+			open：以xxx开始  close：以xxx结束
+		 -->
+		 <foreach collection="array" item="id" separator="," open="(" close=")" >
+		 	#{id}
+		 </foreach>
+	</delete>
+	
+	
+	
+	<!-- 关联执行的sql 	获取部门表 -->
+	<select id="getDept" parameterType="int" resultType="com.zs.pms.po.TDep" >
+		select * from DEPT where id=#{dept}
+	</select>
+	
+	<!-- 部门联查 -->
+	<resultMap type="com.zs.pms.po.TUser" id="usermap2" >
+		<association property="dept" column="dept" select="getDept" />
+	</resultMap>
+	
+	<!-- resultMap:关联返回	 -->
+	<!-- <select id="queryByCon" parameterType="com.zs.pms.vo.QueryUser" resultMap="usermap" >
+		select * from tuser where loginname=#{loginname} and password=#{password}
+	</select> -->
+	
+	<!-- 修改 -->
+	<update id="update" parameterType="com.zs.pms.po.TUser" >
+		update tuser
+		<set>
+			<!-- 去掉最后一个, -->
+			<trim suffixOverrides=",">
+				<if test="password!=null and password!='' ">
+					password=#{password},
+				</if>
+				<if test="sex!=null and sex!='' ">
+					sex=#{sex},
+				</if>
+				<if test="birthday!=null">
+					birthday=#{birthday},
+				</if>
+				<if test="email!=null and email!='' ">
+					email=#{email},
+				</if>
+				<if test="dept!=null">
+					dept=#{dept.id}, 	<!-- 取dept表的id，即为tuser表对应的dept -->
+				</if>
+				<if test="realname!=null and realname!='' ">
+					realname=#{realname},
+				</if>
+				<if test="creator!=0">
+					creator=#{creator},
+				</if>
+				<if test="updator!=0">
+					updator=#{updator},
+				</if>
+				<if test="updatime!=null">
+					updatime=sysdate,
+				</if>
+				<if test="pic!=0">
+					pic=#{pic},
+				</if>
+				<if test="isenabled!=0">
+					isenabled=#{isenabled},
+				</if>
+			</trim>
+		</set>
+		where id=#{id}
+	</update>
+	
+	
+	<!-- 删除一条 -->
+	<delete id="delete" >
+		delete from tuser where id=#{id}
+	</delete>
+	
+	<!-- 新增 -->
+	<insert id="insert" parameterType="com.zs.pms.po.TUser"  >
+		<selectKey keyProperty="id" order="BEFORE" resultType="int">
+			select SEQ_D1.nextval from dual
+		</selectKey>
+		insert into tuser(id, loginname, password, sex, birthday, email, dept, realname,
+		 creator, creatime,updator,updatime, pic, isenabled) 
+		 values(#{id},#{loginname},#{password},#{sex},#{birthday},#{email},
+		#{dept.id},#{realname},#{creator},sysdate,#{updator},sysdate,#{pic},#{isenabled})
+	</insert>
+	
+	<!-- 查询总数 -->
+	<select id="queryCount" parameterType="com.zs.pms.vo.QueryUser" resultType="int">
+		select count(*) from tuser
+	</select>
+		
+	
+</mapper>
